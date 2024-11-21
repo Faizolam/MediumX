@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/utils.css">
+    <link rel="stylesheet" href="css/mobile.css">
+    <title>MediumX</title>
+</head>
+<body>
+    <nav class="navigation">
+        <div class="nav-left">
+            <a href="/">
+                <span><img src="img/X.png" alt="" width="112px"></span>
+            </a>
+            <form action="/search.html" method="get">
+                <div class="search-container">
+                    <img src="svg/search.svg" alt="Search Icon" id="searchIcon" style="cursor: pointer;">
+                    <input type="text" id="searchQuery" class="form-input" name="query" placeholder="Search">
+                </div>
+            </form>
+        </div>
+        <div class="nav-right">
+            <a href="#">
+                <div class="align nav-link"><img src="svg/write.svg" alt="" srcset=""><a href= "#" class="nav-link left-pd">Write</a></div>
+            </a>
+            <a href="#" class="nav-link btn">Sign Up</a>
+            <a href="#" class="nav-link">Sign In</a>
+        </div>
+    </nav>
+    <!-- <hr class="nav-line"> -->
+    <div class="home-articles max-width-2 m-auto">
+        <h1>Results for Ethereum</h1>
+       <div class="recomm">
+            <span>Stories</span>
+            <span>People</span>
+            <span>Publications</span>
+            <span>Topics</span>
+            <span>List</span>
+       </div>
+
+        <div class="home-article max-width-2 m-auto" id="posts-container-search">
+            <!-- <div class="home-article-content">
+                <span id="author">Faiz Alam</span>
+                <a href="/blog.html"><h2>Neva Network: The Next Evolution in Ethereum Layer 2 Solution</h2></a>
+                <h3>Neva Network is a new Ethereum Layer 2 hitting the market with a distinct edge over many existing Layer 2 solutions. </h3>
+                <div class="meta">
+                    <span>Sep 17, 2024</span>
+                    <div class="likes">
+                        <a href="/blog.html"> 
+                        </a>
+                        <img src="svg/like.svg" alt="" srcset="">
+                        <button class="n">1.2K<span></span></button>
+                    </div>
+                    <div class="comments">
+                        <button class="ind-commBtn" aria-label="responses"><img src="svg/comment.svg" alt="" srcset=""></button>
+                        <button class="n">12<span></span></button>
+                    </div>
+                </div>
+                
+            </div> -->
+            <div class="home-article-img">
+                <img src="img/shubham-dhage.jpg" alt="article">
+            </div>
+        </div>            
+           
+    </div>
+    <script src="js/search.js"></script>
+    <!-- <script src="js/script.js"></script> -->
+    <script src="js/blog.js"></script>
+</body>
+</html>
