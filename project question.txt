@@ -1,5 +1,0 @@
-explain filtering that you have used in the project
-explain how you structure the database, what is schema
-challenges you face while building project
-explain the code in the project
-if user add a new todo, it should come to the top of the list (like WhatsApp chat) how to do it.
