@@ -1,0 +1,35 @@
+version: '3.8'
+services:
+  api:
+    image: mediumxbackend:latest
+    ports:
+      - 8000:8000
+    volumes:
+      - ./:/usr/src/app:ro #(Bind mount) shink from local to docker, ro-->read only
+
+    environment:
+      - DATABASE_HOSTNAME=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_PASSWORD=password123
+      - DATABASE_NAME=Blogging
+      - DATABASE_USERNAME=postgres
+      - SECRET_KEY=09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7
+      - ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=60
+    command: bash -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+
+     ## The depends_on directive ensures that the api service starts only after the postgres service is started, which is useful for applications that depend on a database being available
+    depends_on:
+      - postgres
+  
+  postgres:
+    image: postgres #built image it will pull from docker hub
+    environment:
+      - POSTGRES_PASSWORD=password123
+      - POSTGRES_DB=Blogging
+    volumes:
+      - postgres-db:/var/lib/postgresql/data
+    
+volumes:
+  postgres-db:
+
