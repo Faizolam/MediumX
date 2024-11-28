@@ -13,7 +13,7 @@ jobs:
       DATABASE_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
       DATABASE_NAME: ${{ secrets.DATABASE_NAME }}
       DATABASE_NAME_TEST: ${{ secrets.DATABASE_NAME_TEST }}
-      DATABASE_USERNAME: ${{ secrets.DATABASE_USERNAME }}
+      DATABASE_USERNAME: postgres
       SECRET_KEY: ${{ secrets.SECRET_KEY }}
       ALGORITHM: ${{ secrets.ALGORITHM }}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${{ secrets.ACCESS_TOKEN_EXPIRE_MINUTES }}
@@ -23,7 +23,7 @@ jobs:
         image: postgres:14
         env:
           POSTGRES_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
-          DATABASE_NAME_TEST: ${{ secrets.DATABASE_NAME_TEST }}
+          POSTGRES_DB: ${{ secrets.DATABASE_NAME_TEST }}
         ports:
           - 5432:5432
         options: >-
@@ -50,16 +50,23 @@ jobs:
       - name: Wait for PostgreSQL to Be Ready
         run: |
           until pg_isready -h localhost -p 5432 -U postgres; do
-            echo "Waiting for PostgreSQL..."
+            echo "Waiting for PostgreSQL to be ready..."
             sleep 2
           done
 
+      - name: Debug Environment Variables
+        run: printenv | grep DATABASE
+
       - name: Create Test Database
         run: |
-          PGPASSWORD=${{ secrets.DATABASE_PASSWORD }} psql -h localhost -U ${{ secrets.DATABASE_USERNAME }} -c "CREATE DATABASE ${{ secrets.DATABASE_NAME_TEST }};"
+          PGPASSWORD=${{ secrets.DATABASE_PASSWORD }} psql -h localhost -U postgres -c "CREATE DATABASE ${{ secrets.DATABASE_NAME_TEST }};"
+
+      - name: Check PostgreSQL Databases
+        run: |
+          PGPASSWORD=${{ secrets.DATABASE_PASSWORD }} psql -h localhost -U postgres -c "\l"
 
       - name: Set Up Database URL
-        run: echo "DATABASE_URL=postgresql://${{ secrets.DATABASE_USERNAME }}:${{ secrets.DATABASE_PASSWORD }}@localhost:5432/${{ secrets.DATABASE_NAME_TEST }}" >> $GITHUB_ENV
+        run: echo "DATABASE_URL=postgresql://postgres:${{ secrets.DATABASE_PASSWORD }}@localhost:5432/${{ secrets.DATABASE_NAME_TEST }}" >> $GITHUB_ENV
 
       - name: Run Tests
         run: pytest
