@@ -23,6 +23,7 @@ jobs:
         image: postgres:14
         env:
           POSTGRES_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
+          DATABASE_NAME_TEST: ${{ secrets.DATABASE_NAME_TEST }}
         ports:
           - 5432:5432
         options: >-
