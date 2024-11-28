@@ -67,18 +67,10 @@ jobs:
 
       - name: Set Up Database URLs
         run: |
-          echo "APP_DATABASE_URL=postgresql://postgres:${{ secrets.DATABASE_PASSWORD }}@localhost:5432/${{ secrets.DATABASE_NAME }}" >> $GITHUB_ENV
-          echo "TEST_DATABASE_URL=postgresql://postgres:${{ secrets.DATABASE_PASSWORD }}@localhost:5432/${{ secrets.DATABASE_NAME_TEST }}" >> $GITHUB_ENV
+          echo "SQLALCHEMY_DATABASE_URL=postgresql://postgres:${{ secrets.DATABASE_PASSWORD }}@localhost:5432/${{ secrets.DATABASE_NAME }}" >> $GITHUB_ENV
+          echo "SQLALCHEMY_DATABASE_URL_TEST=postgresql://postgres:${{ secrets.DATABASE_PASSWORD }}@localhost:5432/${{ secrets.DATABASE_NAME_TEST }}" >> $GITHUB_ENV
 
-      - name: Apply Migrations to App Database
-        run: |
-            alembic -x db_url=postgresql://postgres:${{ secrets.DATABASE_PASSWORD }}@localhost:5432/${{ secrets.DATABASE_NAME }} upgrade head
-        
-      - name: Apply Migrations to Testing Database
-        run: |
-            alembic -x db_url=postgresql://postgres:${{ secrets.DATABASE_PASSWORD }}@localhost:5432/${{ secrets.DATABASE_NAME_TEST }} upgrade head
-        
       - name: Run Tests
         env:
-          DATABASE_URL: $TEST_DATABASE_URL
+          DATABASE_URL: $SQLALCHEMY_DATABASE_URL_TEST
         run: pytest
