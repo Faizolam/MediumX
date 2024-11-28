@@ -23,7 +23,6 @@ jobs:
         image: postgres:14
         env:
           POSTGRES_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
-          POSTGRES_DB: ${{ secrets.DATABASE_NAME_TEST }}
         ports:
           - 5432:5432
         options: >-
@@ -57,15 +56,16 @@ jobs:
       - name: Debug Environment Variables
         run: printenv | grep DATABASE
 
-      - name: Create Test Database
+      - name: Create Databases
         run: |
+          PGPASSWORD=${{ secrets.DATABASE_PASSWORD }} psql -h localhost -U postgres -c "CREATE DATABASE ${{ secrets.DATABASE_NAME }};"
           PGPASSWORD=${{ secrets.DATABASE_PASSWORD }} psql -h localhost -U postgres -c "CREATE DATABASE ${{ secrets.DATABASE_NAME_TEST }};"
 
       - name: Check PostgreSQL Databases
         run: |
           PGPASSWORD=${{ secrets.DATABASE_PASSWORD }} psql -h localhost -U postgres -c "\l"
 
-      - name: Set Up Database URL
+      - name: Set Up Database URL for Testing
         run: echo "DATABASE_URL=postgresql://postgres:${{ secrets.DATABASE_PASSWORD }}@localhost:5432/${{ secrets.DATABASE_NAME_TEST }}" >> $GITHUB_ENV
 
       - name: Run Tests
