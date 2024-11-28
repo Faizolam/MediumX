@@ -59,6 +59,8 @@ jobs:
 
       - name: Create Test Database
         run: |
+          PGPASSWORD=${{ secrets.DATABASE_PASSWORD }} psql -h localhost -U postgres -tc \
+          "SELECT 1 FROM pg_database WHERE datname = '${{ secrets.DATABASE_NAME_TEST }}'" | grep -q 1 || \
           PGPASSWORD=${{ secrets.DATABASE_PASSWORD }} psql -h localhost -U postgres -c "CREATE DATABASE ${{ secrets.DATABASE_NAME_TEST }};"
 
       - name: Check PostgreSQL Databases
@@ -67,6 +69,13 @@ jobs:
 
       - name: Set Up Database URL
         run: echo "DATABASE_URL=postgresql://postgres:${{ secrets.DATABASE_PASSWORD }}@localhost:5432/${{ secrets.DATABASE_NAME_TEST }}" >> $GITHUB_ENV
+
+      - name: Debug DATABASE_URL
+        run: echo $DATABASE_URL
+
+      - name: Test Database Connectivity
+        run: |
+          PGPASSWORD=${{ secrets.DATABASE_PASSWORD }} psql "${{ env.DATABASE_URL }}" -c "\dt"
 
       - name: Run Tests
         run: pytest
