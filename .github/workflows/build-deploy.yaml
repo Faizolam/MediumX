@@ -4,11 +4,12 @@ on: [push, pull_request]
 
 jobs:
   job1:
+    runs-on: ubuntu-latest
     environment:
       name: testing
     env:
-      DATABASE_HOSTNAME: ${{ secrets.DATABASE_HOSTNAME }}
-      DATABASE_PORT: ${{ secrets.DATABASE_PORT }}
+      DATABASE_HOSTNAME: localhost
+      DATABASE_PORT: 5432
       DATABASE_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
       DATABASE_NAME: ${{ secrets.DATABASE_NAME }}
       DATABASE_NAME_TEST: ${{ secrets.DATABASE_NAME_TEST }}
@@ -19,10 +20,9 @@ jobs:
 
     services:
       postgres:
-        image: postgres:14  # Specify the version if needed
+        image: postgres:14
         env:
           POSTGRES_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
-          POSTGRES_DB: ${{ secrets.DATABASE_NAME_TEST }}
         ports:
           - 5432:5432
         options: >-
@@ -31,33 +31,34 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
-    runs-on: ubuntu-latest
     steps:
-      - name: Pulling git repo
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Install Python version 3.10
+      - name: Set Up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
-      - name: Update pip
-        run: python -m pip install --upgrade pip
-
-      - name: Install all dependencies
+      - name: Install Dependencies
         run: |
+          python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pytest httpx
 
-      - name: Wait for PostgreSQL to be ready
+      - name: Wait for PostgreSQL to Be Ready
         run: |
-          until pg_isready -h localhost -p 5432 -U ${{ secrets.DATABASE_USERNAME }}; do
+          until pg_isready -h localhost -p 5432 -U postgres; do
             echo "Waiting for PostgreSQL..."
             sleep 2
           done
 
-      - name: Set up database connection string
-        run: echo "DATABASE_URL=postgresql://${{ secrets.DATABASE_USERNAME }}:${{ secrets.DATABASE_PASSWORD }}@${{ secrets.DATABASE_HOSTNAME }}:${{ secrets.DATABASE_PORT }}/${{ secrets.DATABASE_NAME_TEST }}" >> $GITHUB_ENV
+      - name: Create Test Database
+        run: |
+          PGPASSWORD=${{ secrets.DATABASE_PASSWORD }} psql -h localhost -U ${{ secrets.DATABASE_USERNAME }} -c "CREATE DATABASE ${{ secrets.DATABASE_NAME_TEST }};"
 
-      - name: Test with pytest
+      - name: Set Up Database URL
+        run: echo "DATABASE_URL=postgresql://${{ secrets.DATABASE_USERNAME }}:${{ secrets.DATABASE_PASSWORD }}@localhost:5432/${{ secrets.DATABASE_NAME_TEST }}" >> $GITHUB_ENV
+
+      - name: Run Tests
         run: pytest
