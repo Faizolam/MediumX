@@ -9,7 +9,8 @@ from app.core.database import get_db, Base
 from app import models
 from app.oauth2 import create_access_token
 
-
+# Debugging output for connection string
+print(f"Connecting to database {settings.DATABASE_NAME_TEST} at {settings.DATABASE_HOSTNAME}:{settings.DATABASE_PORT} with user {settings.DATABASE_USERNAME}")
 
 SQLALCHEMY_DATABASE_URL = f'postgresql://{settings.DATABASE_USERNAME}:{settings.DATABASE_PASSWORD}@{settings.DATABASE_HOSTNAME}:{settings.DATABASE_PORT}/{settings.DATABASE_NAME_TEST}'
 
