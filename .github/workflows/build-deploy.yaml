@@ -3,7 +3,7 @@ name: Build and Deploy Code
 on: [push, pull_request]
 
 jobs:
-  job1:
+  build:
     environment:
       name: testing
     env:
@@ -89,7 +89,13 @@ jobs:
 
       - name: Output image digest
         run: echo "Image Digest is ${{ steps.docker_build.outputs.digest }}"
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [build]
 
+    steps:
+      - name: deploying stuff
+        run: echo "Going to deploy some stuffs"
       # - name: Login to Docker Hub
       #   uses: docker/login-action@v3
       #   with:
