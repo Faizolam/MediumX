@@ -56,12 +56,6 @@ jobs:
             sleep 2
           done
 
-      - name: Create PostgreSQL role if it does not exist
-        run: |
-          psql -h localhost -p ${{ secrets.DATABASE_PORT }} -U ${{ secrets.DATABASE_USERNAME }} -d ${{ secrets.DATABASE_NAME }} -c "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'root') THEN CREATE ROLE root WITH LOGIN PASSWORD '${{ secrets.DATABASE_PASSWORD }}'; END IF; END \$\$;"
-        env:
-          PGPASSWORD: ${{ secrets.DATABASE_PASSWORD }}
-
       - name: Set up database connection string
         run: echo "DATABASE_URL=postgresql://${{ secrets.DATABASE_USERNAME }}:${{ secrets.DATABASE_PASSWORD }}@localhost:${{ secrets.DATABASE_PORT }}/${{ secrets.DATABASE_NAME }}" >> $GITHUB_ENV
 
@@ -92,7 +86,7 @@ jobs:
           tags: ${{ secrets.DOCKER_HUB_USERNAME }}/mediumxbackend:latest
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache
-      
+
       - name: Output image digest
         run: echo "Image Digest is ${{ steps.docker_build.outputs.digest }}"
 
