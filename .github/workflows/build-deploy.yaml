@@ -95,7 +95,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./client
-          file: ./Dockerfile
+          file: ./client/Dockerfile 
           builder: ${{ steps.buildx.outputs.name }}
           push: true
           tags: ${{ secrets.DOCKER_HUB_USERNAME }}/mediumx-frontend:latest
