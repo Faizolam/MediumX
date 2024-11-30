@@ -75,27 +75,45 @@ jobs:
       - name: Create cache directory if not exists
         run: mkdir -p /tmp/.buildx-cache
 
-      - name: Build and push Docker image
-        id: docker_build
+      - name: Build and push Docker medium-backend image
+        id: docker_build_backend
         uses: docker/build-push-action@v6
         with:
           context: ./
           file: ./Dockerfile
           builder: ${{ steps.buildx.outputs.name }}
           push: true
-          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/mediumxbackend:latest
+          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/mediumx-backend:latest
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache
 
-      - name: Output image digest
+      - name: Output backend image digest
+        run: echo "Image Digest is ${{ steps.docker_build_backend.outputs.digest }}"
+      
+      - name: Build and push Docker medium-frontend image
+        id: docker_build_frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./client
+          file: ./Dockerfile
+          builder: ${{ steps.buildx.outputs.name }}
+          push: true
+          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/mediumx-frontend:latest
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache
+
+      - name:  Output frontend image digest
         run: echo "Image Digest is ${{ steps.docker_build.outputs.digest }}"
+      
+      
+
   deploy:
     runs-on: ubuntu-latest
     needs: [build]
 
     steps:
-      - name: deploying stuff
-        run: echo "Going to deploy some stuffs"
+      - name: Deploying application
+        run: echo "Deploying MediumX application..."
       # - name: Login to Docker Hub
       #   uses: docker/login-action@v3
       #   with:

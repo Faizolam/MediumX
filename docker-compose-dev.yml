@@ -1,12 +1,14 @@
 version: '3.8'
 services:
-  api:
-    image: mediumxbackend:latest
+  backend:
+    build: 
+      context: .
+      dockerfile: Dockerfile
     ports:
       - 8000:8000
     volumes:
-      - ./:/usr/src/app:ro #(Bind mount) shink from local to docker, ro-->read only
-
+      - ./:/usr/src/app:rw #(Bind mount) shink from local to docker, ro-->read only
+      - ./Upload/images:/usr/src/app/Upload/images:rw
     environment:
       - DATABASE_HOSTNAME=postgres
       - DATABASE_PORT=5432
@@ -21,6 +23,22 @@ services:
      ## The depends_on directive ensures that the api service starts only after the postgres service is started, which is useful for applications that depend on a database being available
     depends_on:
       - postgres
+    networks:
+      - app-network
+
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    ports:
+      - 5501:80
+    volumes:
+    - ./client:/usr/share/nginx/html 
+    # - ./nginx/nginx.conf:/etc/nginx/nginx.conf 
+    depends_on:
+      - backend
+    networks:
+    - app-network
   
   postgres:
     image: postgres #built image it will pull from docker hub
@@ -29,7 +47,14 @@ services:
       - POSTGRES_DB=Blogging
     volumes:
       - postgres-db:/var/lib/postgresql/data
-    
+    ports:
+      - "5433:5432"
+    networks:
+      - app-network
 volumes:
   postgres-db:
+
+networks:
+  app-network:
+    driver: bridge
 
