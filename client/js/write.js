@@ -37,7 +37,6 @@ document.querySelector('.quote-btn').addEventListener('click', () => formatText(
 // Search for images on Unsplash
 async function searchUnsplash() {
     const query = document.getElementById('imageSearch').value.trim();
-    console.log(query)
     if (!query) return;
 
     const url = `https://api.unsplash.com/search/photos?query=${query}&client_id=${UNSPLASH_ACCESS_KEY}`;
@@ -79,8 +78,6 @@ function displayImages(images) {
         imgElement.onclick = () => selectImage(imgElement)
         imageResults.appendChild(imgElement);
     });
-    // const imageResults1=document.querySelector('#imageResults img').src;
-    // console.log(imageResults1);
    
 }
 
@@ -88,10 +85,6 @@ function selectImage(imgElement){
     const imageResults = document.getElementById('imageResults')
     imageResults.innerHTML = '';
     imageResults.appendChild(imgElement.cloneNode())
-    // console.log(imgElement.cloneNode());
-    console.log("Image selected for upload.");
-    // selectedFile=document.querySelector('#imageResults img').src
-    // console.log(imgElement.src);
     const imageUrl = imgElement.src;
 
     //Fetch the image and convert it to a blob
@@ -105,7 +98,6 @@ function selectImage(imgElement){
         .then((blob)=>{
             const fileName = `unsplash-${Date.now()}.jpg`;
             selectedFile = new File([blob], fileName, { type: blob.type });
-            console.log("Image blob created:",selectedFile);
         })
         .catch((error)=>{
             console.error("Error Creating Blob:", error);
@@ -155,7 +147,6 @@ async function submitPost() {
 
     const formData = new FormData();
     formData.append("file", selectedFile);
-    // console.log(formData)
     let uploadedFilename=null;
 
     try {
@@ -166,9 +157,7 @@ async function submitPost() {
 
         if (uploadResponse.ok) {
             const result = await uploadResponse.json();
-            console.log("Image uploaded successfully:", result);
             uploadedFilename = result.filename
-            console.log(uploadedFilename)
         } else {
             console.error("Error uploading image. Status:", uploadResponse.status);
             return;
@@ -207,7 +196,6 @@ async function submitPost() {
 
         if (response.ok) {
             const postres = await response.json();
-            console.log("Blog published successfully:", postres);
         } else {
             console.error("Error creating post. Status:", response.status);
         }

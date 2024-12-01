@@ -27,21 +27,9 @@ router = APIRouter(
 def get_posts(db : Session = Depends(get_db), limit: int = 10, skip: int = 0, search: Optional[str] = ""):
     """Get all posts"""
 
-    # posts = db.query(postModel.Post, func.count(likeModel.Like.post_id).label("votes")).join(likeModel.Like, likeModel.Like.post_id == postModel.Post.id,isouter=True).group_by(postModel.Post.id).all()
-    # return posts
     posts = PostOpration(db).get_post(limit=limit, skip=skip, search=search)
-    # for post in posts:
-    #     print(post.PostRead.title)
     return posts
-    # for post, likes in posts:
-    #     print(vars(post))  # or post.__dict__
-    #     print(f"Likes: {likes}")
 
-    # posts_with_likes = [(vars(post),likes) for post,likes in posts]
-
-    # posts_with_likes = [postSchemas.PostWithLikes(id=post.id, title=post.title, summary=post.summary, content=post.content, published=post.published, owner_id=post.owner_id, created_at=post.created_at, likes=likes )  for post,likes in posts]
-
-    # return posts_with_likes
 @router.get("/display/{filename}",status_code=status.HTTP_200_OK)
 async def download_file(filename: str):
     file_path = f"./Upload/images/{filename}"  # Replace with the actual directory
@@ -90,7 +78,7 @@ async def upload_image(file: UploadFile = File(...)):
         ext = fileNamesplit[len(fileNamesplit)-1]
         finalFileName=f"{uniqueFileName}.{ext}"
         finalFilePath=f"Upload/images/{finalFileName}"
-        #Make sure the image folder existes
+
         os.makedirs("Upload/images/",exist_ok=True)
 
         with open(finalFilePath, "wb")as buffer:
@@ -136,28 +124,3 @@ def delete_post(id: int, db : Session = Depends(get_db), current_user: int = Dep
     postOpt.get_delete(del_post)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT) 
-
-
-
-# @router.post("/", status_code=status.HTTP_201_CREATED, response_model=postSchemas.Post)
-# def create_posts(post_data: postSchemas.PostCreate, db: Session = Depends(get_db)):
-#     newPost = postModel.Post(**post_data.model_dump())
-#     db.add(newPost)
-#     db.commit()
-#     db.refresh(newPost)
-#     return newPost
-
-
-# @router.get("/")
-# def test_posts(db: Session = Depends(get_db)):
-#     # return {"status":"success"}
-#     print("Hey!")
-#     posts = db.query(post.Post).all()
-#     print(posts)
-#     return {"data":posts}
-
-# @router.get("/", status_code=status.HTTP_200_OK, response_model=List[postSchemas.Post])
-# def get_posts(db: Session = Depends(get_db)):
-#     posts = db.query(postModel.Post).all()
-#     print(posts)
-#     return posts

@@ -6,7 +6,7 @@ const searchInput = document.querySelector('.form-input');
 const articlesContainer = document.querySelector('#posts-container-search'); 
 // console.log(articlesContainer)
 
-// Fetch all posts on page load or when no search query is provided
+// Fetching all posts on page load or when no search query is provided
 async function fetchAllPosts() {
     try {
         const response = await fetch(`${BASE_URL}posts`);
@@ -15,14 +15,13 @@ async function fetchAllPosts() {
         }
         
         const data = await response.json();
-        console.log(data)
         displaySearchResults(data);
     } catch (error) {
         console.error('Error fetching all posts:', error);
     }
 }
 
-// Adding an event listener to the form for search
+
 searchForm.addEventListener('submit', async (event) => {
     event.preventDefault(); 
     const query = searchInput.value.trim();
@@ -58,7 +57,6 @@ function displaySearchResults(posts) {
       const likes = postData.likes;
       const noComment = postData.noComment;
   
-      console.log(post);
   
       const postHTML = `
           <div class="home-article">

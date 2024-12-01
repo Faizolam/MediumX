@@ -27,12 +27,7 @@ class CommentOperation:
             .all()
         )
 
-        # if comments:
-        #     comment, user = comments
-
-        #     result = CommentRead(comment=comment,
-        #                          username=user.username
-        #     )
+     
         result = [
             CommentRead(
                 comment=comment.comment,
@@ -44,12 +39,3 @@ class CommentOperation:
 
         return result
 
-# if post_by_id:
-#             post, likes_count, noComment_count = post_by_id
-            
-#             post_data = PostWithLikes(
-#                 PostRead=PostRead.from_orm(post),
-#                 likes=likes_count,
-#                 noComment=noComment_count
-#             )
-#             return post_data

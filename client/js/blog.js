@@ -155,16 +155,14 @@ async function getImagePost(filename, imgElement = null) {
   try {
     let response = await fetch(`${BASE_URL}posts/display/${filename}`);
     if (response.ok) {
-      let imgBlob = await response.blob(); // Fetch the image as a blob
-      let imgUrl = URL.createObjectURL(imgBlob); // Create a URL for the blob
+      let imgBlob = await response.blob(); 
+      let imgUrl = URL.createObjectURL(imgBlob); 
       // console.log(imgBlob)
 
       if (imgElement) {
-        // Dynamically set the image source if an element is provided
         imgElement.src = imgUrl;
         imgElement.alt = "Post Image";
       } else {
-        // Return the image URL for other uses
         return imgUrl;
       }
     } else {
@@ -266,14 +264,6 @@ async function updateLikesCount(postId) {
     console.error("Error fetching post data:", error);
   }
 }
-//functions to heandel comments
-
-// const cancelBtn = document.getElementById("cl");
-// const commentTxt = document.getElementById("comt-txt span");
-// console.log(commentTxt)
-// cancelBtn.addEventListener('click', function(){
-
-// })
 
 const cancelButton = document.querySelector(".cl");
 const responseButton = document.querySelector(".res");
@@ -295,7 +285,7 @@ function commentData(postId) {
 
 async function createComment(content, postId) {
   const token = localStorage.getItem("accessToken");
-  console.log(content, postId);
+  // console.log(content, postId);
 
   try {
     let response = await fetch(`${BASE_URL}comment/${postId}`, {
@@ -312,7 +302,7 @@ async function createComment(content, postId) {
     if (response.ok) {
       let userComment = response.json();
       inputField.value = "";
-      console.log("user's comment:", userComment);
+      // console.log("user's comment:", userComment);
     } else {
       console.error("getting error while creating comment", response.status);
     }

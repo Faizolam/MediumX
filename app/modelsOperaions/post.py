@@ -32,10 +32,6 @@ class PostOpration:
             .all()
         )
         
-        # return all_posts
-        # all_posts =  self.db.query(SQLAlchemyPost).filter(or_(SQLAlchemyPost.title.contains(search), SQLAlchemyPost.summary.contains(search))).limit(limit=limit).offset(skip).all()
-        # all_posts =  self.db.query(SQLAlchemyPost).all()
-        # return all_posts
 
         posts_with_likes = [PostWithLikes(PostRead=PostRead.from_orm(post), likes=likes_count, noComment=noComment_count) for post, likes_count, noComment_count in all_posts]
 
@@ -91,8 +87,6 @@ class PostOpration:
         if not del_post:
             return None
         
-        # post_query.delete(synchronize_session=False)
-        # self.db.commit()
         return del_post
     
     def get_delete(self, post: SQLAlchemyPost):

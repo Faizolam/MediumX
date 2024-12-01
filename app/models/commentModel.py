@@ -14,12 +14,6 @@ class Comment(Base):
     comment = Column(String, nullable=False)
     comment_date = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
 
-
-    # comment_user = relationship('User', foreign_keys=[user_id], back_populates='comments')
     
     comment_user = relationship("User",  back_populates="comments")
     comment_post = relationship("Post",  back_populates="comments")
-
-
-# # from .postModel import Post
-# # from .userModel import User

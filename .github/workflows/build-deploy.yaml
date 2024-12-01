@@ -19,7 +19,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:14  # Specify the version if needed
+        image: postgres:16
         env:
           POSTGRES_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
           POSTGRES_DB: ${{ secrets.DATABASE_NAME }}
@@ -75,7 +75,7 @@ jobs:
       - name: Create cache directory if not exists
         run: mkdir -p /tmp/.buildx-cache
 
-      - name: Build and push Docker medium-backend image
+      - name: Build and push Docker mediumx-backend image
         id: docker_build_backend
         uses: docker/build-push-action@v6
         with:
@@ -90,7 +90,7 @@ jobs:
       - name: Output backend image digest
         run: echo "Image Digest is ${{ steps.docker_build_backend.outputs.digest }}"
       
-      - name: Build and push Docker medium-frontend image
+      - name: Build and push Docker mediumx-frontend image
         id: docker_build_frontend
         uses: docker/build-push-action@v6
         with:

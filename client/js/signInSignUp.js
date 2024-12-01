@@ -115,7 +115,7 @@ async function createUser(userName, gmailId, passWord) {
 
     if (response.ok) {
       let userData = await response.json();
-      console.log("User created successfully:", userData);
+      // console.log("User created successfully:", userData);
       closeModal(mainSignUp);
     } else {
       console.error("Error creating user, status:", response.status);
@@ -162,7 +162,7 @@ async function loginUser(gmailId, passWord) {
 
     if (response.ok) {
       let loginData = await response.json();
-      console.log("Login Successful", loginData);
+      // console.log("Login Successful", loginData);
       closeModal(mainSignIn);
 
       localStorage.setItem("accessToken", loginData.access_token);
