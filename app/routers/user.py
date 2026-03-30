@@ -23,7 +23,7 @@ def get_all_users(db: Session=Depends(get_db)):
     getUser = userOpt.get_users()
     return getUser
 
-@router.get("/{id}", status_code=status.HTTP_200_OK, response_model=userSchemas.UserRead)
+@router.get("/{id}", status_code=status.HTTP_200_OK, response_model=userSchemas.UserRead)#The Filter: Since UserRead does not have a password field, Pydantic simply ignores the password hash from the database object.
 def get_user_id(id: int, db: Session=Depends(get_db)):
     """Get user by ID"""
     single_user = UserOpration(db).get_user(user_id=id)
@@ -42,3 +42,16 @@ def create_user(user_data: userSchemas.UserCreate, db : Session=Depends(get_db))
     userOpt = UserOpration(db)
     newUser = userOpt.get_create_user(user_data=user_data)
     return newUser
+
+
+# +---------------------------+         +------------------------------+       +----------------------+
+# |username, email, password  | ---->   |utils.hash(user_data.password)| ----> |user_data save in db  |---> newUser return with hashed password but not in reponse model
+# +---------------------------+         +------------------------------+       +----------------------+
+
+# create_user fun receive user_data with password, then hash the password and save it in db, but when return newUser, it will not return password because of response_model=userSchemas.UserRead which does not have password field. So the response will only contain id, username, email and created_at fields.
+# {
+#   "id": 1,
+#   "username": "johndoe",
+#   "email": "john@example.com",
+#   "created_at": "2023-10-27T10:00:00"
+# }

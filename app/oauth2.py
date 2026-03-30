@@ -8,7 +8,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
-
+# When a user first logs in, they send their username and password to the URL you specified in tokenUrl (in your code, this is 'login').
 oauth2_schema = OAuth2PasswordBearer(tokenUrl = 'login')
 
 

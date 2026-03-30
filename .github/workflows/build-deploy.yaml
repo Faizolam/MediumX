@@ -1,130 +1,692 @@
-name: Build and Deploy Code
+# .github/workflows/build-deploy.yaml
 
-on: [push, pull_request]
+name: Build and Deploy to GCP
+
+on:
+  # push:
+  #   branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  PROJECT_ID: opportune-chess-462012-a3
+  REGION: us-central1
+  SERVICE_NAME: mediumx-backend
+  REPOSITORY: mediumx-backend-repo
 
 jobs:
-  build:
-    environment:
-      name: testing
-    env:
-      DATABASE_HOSTNAME: ${{ secrets.DATABASE_HOSTNAME }}
-      DATABASE_PORT: ${{ secrets.DATABASE_PORT }}
-      DATABASE_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
-      DATABASE_NAME: ${{ secrets.DATABASE_NAME }}
-      DATABASE_NAME_TEST: ${{ secrets.DATABASE_NAME_TEST }}
-      DATABASE_USERNAME: ${{ secrets.DATABASE_USERNAME }}
-      SECRET_KEY: ${{ secrets.SECRET_KEY }}
-      ALGORITHM: ${{ secrets.ALGORITHM }}
-      ACCESS_TOKEN_EXPIRE_MINUTES: ${{ secrets.ACCESS_TOKEN_EXPIRE_MINUTES }}
-
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
     services:
       postgres:
-        image: postgres:16
+        image: postgres:15
         env:
-          POSTGRES_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
-          POSTGRES_DB: ${{ secrets.DATABASE_NAME }}
-        ports:
-          - 5432:5432
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_db
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+        ports:
+          - 5432:5432
 
-    runs-on: ubuntu-latest
     steps:
-      - name: Pulling git repo
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Install Python version 3.10
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.10"
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
 
-      - name: Update pip
-        run: python -m pip install --upgrade pip
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
 
-      - name: Install all dependencies
-        run: |
-          pip install -r requirements.txt
-          pip install pytest httpx
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-asyncio httpx
 
-      - name: Wait for PostgreSQL to be ready
-        run: |
-          until pg_isready -h localhost -p ${{ secrets.DATABASE_PORT }} -U ${{ secrets.DATABASE_USERNAME }}; do
-            echo "Waiting for PostgreSQL..."
-            sleep 2
-          done
+    - name: Set up test environment and run migrations
+      env:
+        DATABASE_HOSTNAME: localhost
+        DATABASE_PORT: 5432
+        DATABASE_USERNAME: test_user
+        DATABASE_PASSWORD: test_password
+        DATABASE_NAME: test_db
+        SECRET_KEY: test-secret-key-for-testing-only
+        ALGORITHM: HS256
+        ACCESS_TOKEN_EXPIRE_MINUTES: 60
+        ENVIRONMENT: testing
+      run: |
+        alembic upgrade head
 
-      - name: Set up database connection string
-        run: echo "DATABASE_URL=postgresql://${{ secrets.DATABASE_USERNAME }}:${{ secrets.DATABASE_PASSWORD }}@localhost:${{ secrets.DATABASE_PORT }}/${{ secrets.DATABASE_NAME }}" >> $GITHUB_ENV
-
-      - name: Test with pytest
-        run: pytest
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_HUB_USERNAME }}
-          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
-
-      - name: Set up Docker Buildx
-        id: buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Create cache directory if not exists
-        run: mkdir -p /tmp/.buildx-cache
-
-      - name: Build and push Docker mediumx-backend image
-        id: docker_build_backend
-        uses: docker/build-push-action@v6
-        with:
-          context: ./
-          file: ./Dockerfile
-          builder: ${{ steps.buildx.outputs.name }}
-          push: true
-          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/mediumx-backend:latest
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache
-
-      - name: Output backend image digest
-        run: echo "Image Digest is ${{ steps.docker_build_backend.outputs.digest }}"
-      
-      - name: Build and push Docker mediumx-frontend image
-        id: docker_build_frontend
-        uses: docker/build-push-action@v6
-        with:
-          context: ./client
-          file: ./client/Dockerfile 
-          builder: ${{ steps.buildx.outputs.name }}
-          push: true
-          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/mediumx-frontend:latest
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache
-
-      - name:  Output frontend image digest
-        run: echo "Image Digest is ${{ steps.docker_build.outputs.digest }}"
-      
-      
+    - name: Run tests
+      env:
+        DATABASE_HOSTNAME: localhost
+        DATABASE_PORT: 5432
+        DATABASE_USERNAME: test_user
+        DATABASE_PASSWORD: test_password
+        DATABASE_NAME: test_db
+        SECRET_KEY: test-secret-key-for-testing-only
+        ALGORITHM: HS256
+        ACCESS_TOKEN_EXPIRE_MINUTES: 60
+        ENVIRONMENT: testing
+      run: |
+        pytest tests/ -v --tb=short
 
   deploy:
+    name: Build and Deploy to Cloud Run
     runs-on: ubuntu-latest
-    needs: [build]
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    permissions:
+      contents: read
+      id-token: write
 
     steps:
-      - name: Deploying application
-        run: echo "Deploying MediumX application..."
-      # - name: Login to Docker Hub
-      #   uses: docker/login-action@v3
-      #   with:
-      #     username: ${{ secrets.DOCKER_HUB_USERNAME }}
-      #     password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
-        
-      # - name: Set up Docker Buildx
-      #   uses: docker/setup-buildx-action@v3
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      # - name: Build and push
-      #   uses: docker/build-push-action@v6
-      #   with:
-      #     push: true
-      #     tags: ${{ secrets.DOCKER_HUB_USERNAME }}/mediumxbackend:latest
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+        service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+        project_id: ${{ env.PROJECT_ID }}
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+      with:
+        project_id: ${{ env.PROJECT_ID }}
+
+    - name: Configure Docker for Artifact Registry
+      run: |
+        gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
+    - name: Build Docker image
+      run: |
+        docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/backend-image:${{ github.sha }} .
+        docker tag ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/backend-image:${{ github.sha }} \
+                   ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/backend-image:latest
+
+    - name: Push Docker image to Artifact Registry
+      run: |
+        docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/backend-image:${{ github.sha }}
+        docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/backend-image:latest
+
+    - name: Run database migrations
+      run: |
+        # Get database connection details from secrets
+        gcloud run jobs create migration-job-${{ github.sha }} \
+          --image=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/backend-image:${{ github.sha }} \
+          --region=${{ env.REGION }} \
+          --service-account=${{ secrets.CLOUD_RUN_SERVICE_ACCOUNT }} \
+          --set-env-vars=ENVIRONMENT=production \
+          --set-secrets=DB_PASS=db-password-secret:latest \
+          --set-env-vars=DB_USER=${{ secrets.DB_USER }} \
+          --set-env-vars=DB_NAME=${{ secrets.DB_NAME }} \
+          --set-env-vars=CLOUD_SQL_CONNECTION_NAME=${{ secrets.CLOUD_SQL_CONNECTION_NAME }} \
+          --vpc-connector=mediumx-vpc-connector \
+          --args="alembic,upgrade,head"
+        
+        # Execute the migration job
+        gcloud run jobs execute migration-job-${{ github.sha }} --region=${{ env.REGION }} --wait
+        
+        # Clean up the job
+        gcloud run jobs delete migration-job-${{ github.sha }} --region=${{ env.REGION }} --quiet
+      
+    - name: Invalidate CDN Cache (if using Cloud CDN)
+      run: |
+        # This would invalidate CDN cache if you set up Cloud CDN
+        # gcloud compute url-maps invalidate-cdn-cache mediumx-url-map --path="/*" --async
+
+    - name: Deploy to Cloud Run
+      uses: google-github-actions/deploy-cloudrun@v2
+      with:
+        service: ${{ env.SERVICE_NAME }}
+        region: ${{ env.REGION }}
+        image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/backend-image:${{ github.sha }}
+        flags: |
+          --allow-unauthenticated
+          --max-instances=10
+          --memory=512Mi
+          --cpu=1
+          --timeout=300
+          --set-env-vars=ENVIRONMENT=production
+          --service-account=${{ secrets.CLOUD_RUN_SERVICE_ACCOUNT }}
+
+    - name: Upload frontend to Cloud Storage
+      run: |
+        # Sync frontend files to Cloud Storage
+        gsutil -m rsync -r -d ./client/ gs://${{ secrets.STATIC_BUCKET_NAME }}/
+        
+        # Set proper content types and cache headers
+        gsutil -m setmeta -h "Content-Type:text/html" -h "Cache-Control:no-cache" gs://${{ secrets.STATIC_BUCKET_NAME }}/**/*.html || true
+        gsutil -m setmeta -h "Content-Type:text/css" -h "Cache-Control:max-age=31536000" gs://${{ secrets.STATIC_BUCKET_NAME }}/**/*.css || true
+        gsutil -m setmeta -h "Content-Type:application/javascript" -h "Cache-Control:max-age=31536000" gs://${{ secrets.STATIC_BUCKET_NAME }}/**/*.js || true
+        gsutil -m setmeta -h "Cache-Control:max-age=31536000" gs://${{ secrets.STATIC_BUCKET_NAME }}/**/*.{png,jpg,jpeg,svg,ico} || true
+
+    - name: Get deployment URLs
+      id: deploy
+      run: |
+        BACKEND_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} --region=${{ env.REGION }} --format='value(status.url)')
+        echo "backend_url=$BACKEND_URL" >> $GITHUB_OUTPUT
+        echo "🚀 Deployment successful!"
+        echo "Backend URL: $BACKEND_URL"
+        echo "Frontend URL: https://${{ secrets.DOMAIN_NAME }}"
+
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+        service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+        project_id: ${{ env.PROJECT_ID }}
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+
+    - name: Configure Docker for Artifact Registry
+      run: |
+        gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
+    - name: Build and Deploy to Staging
+      run: |
+        # Build staging image
+        docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/backend-image:staging-${{ github.sha }} .
+        docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/backend-image:staging-${{ github.sha }}
+        
+        # Deploy to staging service
+        gcloud run deploy mediumx-backend-staging \
+          --image ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/backend-image:staging-${{ github.sha }} \
+          --region ${{ env.REGION }} \
+          --allow-unauthenticated \
+          --max-instances 5 \
+          --memory 256Mi \
+          --set-env-vars ENVIRONMENT=staging \
+          --service-account ${{ secrets.CLOUD_RUN_SERVICE_ACCOUNT }}
+
+    - name: Output staging deployment info
+      run: |
+        STAGING_URL=$(gcloud run services describe mediumx-backend-staging --region=${{ env.REGION }} --format='value(status.url)')
+        echo "🎯 Staging deployment completed!"
+        echo "Staging URL: $STAGING_URL"
+        
+# ============================V2=====================================
+# name: Build and Deploy to GCP
+
+# on:
+#   push:
+#     branches: [ main, develop ]
+#   pull_request:
+#     branches: [ main ]
+
+# env:
+#   PROJECT_ID: opportune-chess-462012-a3
+#   REGION: us-central1
+#   SERVICE_NAME: mediumx-backend
+#   REPOSITORY: mediumx-backend-repo
+
+#   # Terraform state bucket + prefixes (change to your actual bucket/prefix)
+#   TF_STATE_BUCKET: my-terraform-states
+#   TF_STATE_PREFIX_FOUNDATION: foundation
+#   TF_STATE_PREFIX_SERVICE: service
+
+# jobs:
+#   test:
+#     name: Run Tests
+#     runs-on: ubuntu-latest
+
+#     services:
+#       postgres:
+#         image: postgres:15
+#         env:
+#           POSTGRES_USER: test_user
+#           POSTGRES_PASSWORD: test_password
+#           POSTGRES_DB: test_db
+#         options: >-
+#           --health-cmd pg_isready
+#           --health-interval 10s
+#           --health-timeout 5s
+#           --health-retries 5
+#         ports:
+#           - 5432:5432
+
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
+
+#       - name: Set up Python
+#         uses: actions/setup-python@v4
+#         with:
+#           python-version: '3.10'
+
+#       - name: Cache pip dependencies
+#         uses: actions/cache@v3
+#         with:
+#           path: ~/.cache/pip
+#           key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+#           restore-keys: |
+#             ${{ runner.os }}-pip-
+
+#       - name: Install dependencies
+#         run: |
+#           python -m pip install --upgrade pip
+#           pip install -r requirements.txt
+#           pip install pytest pytest-asyncio httpx
+
+#       - name: Set up test environment and run migrations
+#         env:
+#           DATABASE_HOSTNAME: localhost
+#           DATABASE_PORT: 5432
+#           DATABASE_USERNAME: test_user
+#           DATABASE_PASSWORD: test_password
+#           DATABASE_NAME: test_db
+#           SECRET_KEY: test-secret-key-for-testing-only
+#           ALGORITHM: HS256
+#           ACCESS_TOKEN_EXPIRE_MINUTES: 60
+#           ENVIRONMENT: testing
+#         run: |
+#           alembic upgrade head
+
+#       - name: Run tests
+#         env:
+#           DATABASE_HOSTNAME: localhost
+#           DATABASE_PORT: 5432
+#           DATABASE_USERNAME: test_user
+#           DATABASE_PASSWORD: test_password
+#           DATABASE_NAME: test_db
+#           SECRET_KEY: test-secret-key-for-testing-only
+#           ALGORITHM: HS256
+#           ACCESS_TOKEN_EXPIRE_MINUTES: 60
+#           ENVIRONMENT: testing
+#         run: |
+#           pytest tests/ -v --tb=short
+
+#   build-and-push:
+#     name: Build and Push Docker Image
+#     runs-on: ubuntu-latest
+#     needs: test
+
+#     permissions:
+#       contents: read
+#       id-token: write
+
+#     steps:
+#       - name: Checkout
+#         uses: actions/checkout@v4
+
+#       - name: Authenticate to Google Cloud (Workload Identity Federation)
+#         uses: google-github-actions/auth@v2
+#         with:
+#           workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+#           service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+#           project_id: ${{ env.PROJECT_ID }}
+
+#       - name: Setup Cloud SDK
+#         uses: google-github-actions/setup-gcloud@v2
+#         with:
+#           project_id: ${{ env.PROJECT_ID }}
+#           install_components: gke-gcloud-auth-plugin
+
+#       - name: Configure Docker for Artifact Registry
+#         run: |
+#           gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
+#       - name: Build Docker image
+#         run: |
+#           IMAGE=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/backend-image:${{ github.sha }}
+#           docker build -t $IMAGE .
+#           docker tag $IMAGE ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/backend-image:latest
+#           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+
+#       - name: Push Docker image to Artifact Registry
+#         run: |
+#           docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/backend-image:${{ github.sha }}
+#           docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/backend-image:latest
+
+#   deploy:
+#     name: Deploy (Terraform-managed service)
+#     runs-on: ubuntu-latest
+#     needs: build-and-push
+#     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+#     permissions:
+#       contents: read
+#       id-token: write
+
+#     steps:
+#       - name: Checkout
+#         uses: actions/checkout@v4
+
+#       - name: Authenticate to Google Cloud (WIF)
+#         uses: google-github-actions/auth@v2
+#         with:
+#           workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+#           service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+#           project_id: ${{ env.PROJECT_ID }}
+
+#       - name: Setup Cloud SDK
+#         uses: google-github-actions/setup-gcloud@v2
+#         with:
+#           project_id: ${{ env.PROJECT_ID }}
+
+#       - name: Setup Terraform
+#         uses: hashicorp/setup-terraform@v3
+#         with:
+#           terraform_version: 1.6.0
+
+#       - name: Terraform init (service)
+#         working-directory: terraform/service
+#         run: |
+#           terraform init -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" -backend-config="prefix=${{ env.TF_STATE_PREFIX_SERVICE }}"
+
+#       - name: Terraform apply (service) -> deploy Cloud Run + LB (uses built image)
+#         id: tfapply
+#         working-directory: terraform/service
+#         env:
+#           IMAGE: ${{ env.IMAGE }}
+#         run: |
+#           # Ensure the environment tfvars path is correct for your repo
+#           terraform apply -auto-approve \
+#             -var-file=environments/dev/config.tfvars \
+#             -var "project_id=${{ env.PROJECT_ID }}" \
+#             -var "region=${{ env.REGION }}" \
+#             -var "docker_image=${IMAGE}"
+
+#       - name: Run DB migrations as Cloud Run Job (create -> execute -> delete)
+#         # Uses the freshly built image; this job uses the service account stored in secrets
+#         env:
+#           IMAGE: ${{ env.IMAGE }}
+#           REGION: ${{ env.REGION }}
+#           PROJECT_ID: ${{ env.PROJECT_ID }}
+#         run: |
+#           # NOTE: replace mediumx-vpc-connector with the connector name from your foundation outputs if different
+#           JOB_NAME="migration-job-${{ github.sha }}"
+#           gcloud run jobs create $JOB_NAME \
+#             --image=${IMAGE} \
+#             --region=${REGION} \
+#             --service-account=${{ secrets.CLOUD_RUN_SERVICE_ACCOUNT }} \
+#             --set-env-vars=ENVIRONMENT=production \
+#             --set-secrets=DB_PASS=${{ secrets.DB_PASS }}:latest \
+#             --set-env-vars=DB_USER=${{ secrets.DB_USER }},DB_NAME=${{ secrets.DB_NAME }},CLOUD_SQL_CONNECTION_NAME=${{ secrets.CLOUD_SQL_CONNECTION_NAME }} \
+#             --vpc-connector=mediumx-vpc-connector \
+#             --args="alembic,upgrade,head" || true
+
+#           gcloud run jobs execute $JOB_NAME --region=${REGION} --wait || true
+
+#           gcloud run jobs delete $JOB_NAME --region=${REGION} --quiet || true
+
+#       - name: Upload frontend to Cloud Storage
+#         env:
+#           STATIC_BUCKET: ${{ secrets.STATIC_BUCKET_NAME }}
+#         run: |
+#           # Sync client/ build output folder (adjust path to your build output, e.g., client/dist)
+#           gsutil -m rsync -r -d ./client/ gs://${STATIC_BUCKET}/
+
+#           # Set common content types & cache headers (best-effort, some patterns may fail - that's okay)
+#           gsutil -m setmeta -h "Content-Type:text/html" -h "Cache-Control:no-cache" gs://${STATIC_BUCKET}/**/*.html || true
+#           gsutil -m setmeta -h "Content-Type:text/css" -h "Cache-Control:max-age=31536000" gs://${STATIC_BUCKET}/**/*.css || true
+#           gsutil -m setmeta -h "Content-Type:application/javascript" -h "Cache-Control:max-age=31536000" gs://${STATIC_BUCKET}/**/*.js || true
+#           gsutil -m setmeta -h "Cache-Control:max-age=31536000" gs://${STATIC_BUCKET}/**/*.{png,jpg,jpeg,svg,ico} || true
+
+#       - name: Get deployment URLs
+#         id: deploy
+#         run: |
+#           BACKEND_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} --region=${{ env.REGION }} --format='value(status.url)')
+#           echo "backend_url=$BACKEND_URL" >> $GITHUB_OUTPUT
+#           echo "🚀 Deployment successful!"
+#           echo "Backend URL: $BACKEND_URL"
+#           echo "Frontend URL: https://${{ secrets.DOMAIN_NAME }}"
+
+#       # If you want to keep the old 'gcloud run deploy' path instead of Terraform,
+#       # uncomment below (NOT recommended together with Terraform-managed Cloud Run):
+#       #
+#       # - name: Deploy to Cloud Run (legacy - skip if using Terraform)
+#       #   uses: google-github-actions/deploy-cloudrun@v2
+#       #   with:
+#       #     service: ${{ env.SERVICE_NAME }}
+#       #     region: ${{ env.REGION }}
+#       #     image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/backend-image:${{ github.sha }}
+#       #     flags: |
+#       #       --allow-unauthenticated
+#       #       --max-instances=10
+#       #       --memory=512Mi
+#       #       --cpu=1
+#       #       --timeout=300
+#       #       --set-env-vars=ENVIRONMENT=production
+#       #       --service-account=${{ secrets.CLOUD_RUN_SERVICE_ACCOUNT }}
+
+#   deploy-staging:
+#     name: Deploy to Staging
+#     runs-on: ubuntu-latest
+#     needs: build-and-push
+#     if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+
+#     permissions:
+#       contents: read
+#       id-token: write
+
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
+
+#       - name: Authenticate to Google Cloud (WIF)
+#         uses: google-github-actions/auth@v2
+#         with:
+#           workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+#           service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+#           project_id: ${{ env.PROJECT_ID }}
+
+#       - name: Set up Cloud SDK
+#         uses: google-github-actions/setup-gcloud@v2
+
+#       - name: Configure Docker for Artifact Registry
+#         run: |
+#           gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
+#       - name: Build and Deploy to Staging (simple gcloud deploy)
+#         run: |
+#           IMAGE=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/backend-image:staging-${{ github.sha }}
+#           docker build -t $IMAGE .
+#           docker push $IMAGE
+#           gcloud run deploy mediumx-backend-staging \
+#             --image $IMAGE \
+#             --region=${{ env.REGION }} \
+#             --allow-unauthenticated \
+#             --max-instances=5 \
+#             --memory=256Mi \
+#             --set-env-vars ENVIRONMENT=staging \
+#             --service-account ${{ secrets.CLOUD_RUN_SERVICE_ACCOUNT }}
+
+#       - name: Output staging deployment info
+#         run: |
+#           STAGING_URL=$(gcloud run services describe mediumx-backend-staging --region=${{ env.REGION }} --format='value(status.url)')
+#           echo "🎯 Staging deployment completed!"
+#           echo "Staging URL: $STAGING_URL"
+
+
+
+# ===============================================================
+
+
+# name: Build and Deploy Code
+
+# on: [push, pull_request]
+
+# jobs:
+#   build:
+#     environment:
+#       name: testing
+#     env:
+#       DATABASE_HOSTNAME: ${{ secrets.DATABASE_HOSTNAME }}
+#       DATABASE_PORT: ${{ secrets.DATABASE_PORT }}
+#       DATABASE_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
+#       DATABASE_NAME: ${{ secrets.DATABASE_NAME }}
+#       DATABASE_NAME_TEST: ${{ secrets.DATABASE_NAME_TEST }}
+#       DATABASE_USERNAME: ${{ secrets.DATABASE_USERNAME }}
+#       SECRET_KEY: ${{ secrets.SECRET_KEY }}
+#       ALGORITHM: ${{ secrets.ALGORITHM }}
+#       ACCESS_TOKEN_EXPIRE_MINUTES: ${{ secrets.ACCESS_TOKEN_EXPIRE_MINUTES }}
+
+#     services:
+#       postgres:
+#         image: postgres:16
+#         env:
+#           POSTGRES_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
+#           POSTGRES_DB: ${{ secrets.DATABASE_NAME }}
+#         ports:
+#           - 5432:5432
+#         options: >-
+#           --health-cmd pg_isready
+#           --health-interval 10s
+#           --health-timeout 5s
+#           --health-retries 5
+
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Pulling git repo
+#         uses: actions/checkout@v4
+
+#       - name: Install Python version 3.10
+#         uses: actions/setup-python@v5
+#         with:
+#           python-version: "3.10"
+
+#       - name: Update pip
+#         run: python -m pip install --upgrade pip
+
+#       - name: Install all dependencies
+#         run: |
+#           pip install -r requirements.txt
+#           pip install pytest httpx
+
+#       - name: Wait for PostgreSQL to be ready
+#         run: |
+#           until pg_isready -h localhost -p ${{ secrets.DATABASE_PORT }} -U ${{ secrets.DATABASE_USERNAME }}; do
+#             echo "Waiting for PostgreSQL..."
+#             sleep 2
+#           done
+
+#       - name: Set up database connection string
+#         run: echo "DATABASE_URL=postgresql://${{ secrets.DATABASE_USERNAME }}:${{ secrets.DATABASE_PASSWORD }}@localhost:${{ secrets.DATABASE_PORT }}/${{ secrets.DATABASE_NAME }}" >> $GITHUB_ENV
+
+#       - name: Test with pytest
+#         run: pytest
+
+#       - name: Login to Docker Hub
+#         uses: docker/login-action@v3
+#         with:
+#           username: ${{ secrets.DOCKER_HUB_USERNAME }}
+#           password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+
+#       - name: Set up Docker Buildx
+#         id: buildx
+#         uses: docker/setup-buildx-action@v3
+
+#       - name: Create cache directory if not exists
+#         run: mkdir -p /tmp/.buildx-cache
+
+#       - name: Build and push Docker mediumx-backend image
+#         id: docker_build_backend
+#         uses: docker/build-push-action@v6
+#         with:
+#           context: ./
+#           file: ./Dockerfile
+#           builder: ${{ steps.buildx.outputs.name }}
+#           push: true
+#           tags: ${{ secrets.DOCKER_HUB_USERNAME }}/mediumx-backend:latest
+#           cache-from: type=local,src=/tmp/.buildx-cache
+#           cache-to: type=local,dest=/tmp/.buildx-cache
+
+#       - name: Output backend image digest
+#         run: echo "Image Digest is ${{ steps.docker_build_backend.outputs.digest }}"
+      
+#       - name: Build and push Docker mediumx-frontend image
+#         id: docker_build_frontend
+#         uses: docker/build-push-action@v6
+#         with:
+#           context: ./client
+#           file: ./client/Dockerfile 
+#           builder: ${{ steps.buildx.outputs.name }}
+#           push: true
+#           tags: ${{ secrets.DOCKER_HUB_USERNAME }}/mediumx-frontend:latest
+#           cache-from: type=local,src=/tmp/.buildx-cache
+#           cache-to: type=local,dest=/tmp/.buildx-cache
+
+#       - name:  Output frontend image digest
+#         run: echo "Image Digest is ${{ steps.docker_build.outputs.digest }}"
+      
+      
+
+#   # deploy:
+#   #   runs-on: ubuntu-latest
+#   #   needs: [build]
+
+#   #   steps:
+#   #     - name: Deploying MediumX application On GCE
+#   #       run: echo "Deploying MediumX application..."
+
+
+
+#   deploy:
+#     runs-on: ubuntu-latest
+#     needs: build
+
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
+
+#       - name: Set up Google Cloud SDK
+#         uses: google-github-actions/setup-gcloud@v2
+#         with:
+#           service_account_key: ${{ secrets.GCP_SA_KEY }}
+#           project_id: ${{ secrets.GCP_PROJECT_ID }}
+#           export_default_credentials: true
+
+#       - name: Deploy Backend to GCP Compute Engine
+#         run: |
+#           gcloud compute ssh --zone "us-central1-a" "your-instance-name" --project "${{ secrets.GCP_PROJECT_ID }}" --command "docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/mediumx-backend && docker run -d --restart unless-stopped --name mediumx-backend -p 8000:8000 ${{ secrets.DOCKER_HUB_USERNAME }}/mediumx-backend"
+
+#       - name: Deploy Frontend to GCP Compute Engine
+#         run: |
+#           gcloud compute ssh --zone "us-central1-a" "your-instance-name" --project "${{ secrets.GCP_PROJECT_ID }}" --command "docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/mediumx-frontend && docker run -d --restart unless-stopped --name mediumx-frontend -p 80:80 ${{ secrets.DOCKER_HUB_USERNAME }}/mediumx-frontend"
+#       # - name: Login to Docker Hub
+#       #   uses: docker/login-action@v3
+#       #   with:
+#       #     username: ${{ secrets.DOCKER_HUB_USERNAME }}
+#       #     password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+        
+#       # - name: Set up Docker Buildx
+#       #   uses: docker/setup-buildx-action@v3
+
+#       # - name: Build and push
+#       #   uses: docker/build-push-action@v6
+#       #   with:
+#       #     push: true
+#       #     tags: ${{ secrets.DOCKER_HUB_USERNAME }}/mediumxbackend:latest

@@ -1,7 +1,13 @@
+"""
+Shared test fixtures and configuration for MediumX tests
+Uses transaction rollback strategy for test isolation
+"""
 from fastapi.testclient import TestClient
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy.pool import NullPool
 from sqlalchemy.ext.declarative import declarative_base
 from app.main import app
 from app.core.config import settings
@@ -15,7 +21,12 @@ from app.oauth2 import create_access_token
 
 SQLALCHEMY_DATABASE_URL_TEST = f'postgresql://{settings.DATABASE_USERNAME}:{settings.DATABASE_PASSWORD}@{settings.DATABASE_HOSTNAME}:{settings.DATABASE_PORT}/{settings.DATABASE_NAME}'
 
-engine = create_engine(SQLALCHEMY_DATABASE_URL_TEST)
+# Create test engine with NullPool (no connection pooling for tests).This ensures that a new connection is established and closed for every test case
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL_TEST,
+    poolclass=NullPool,
+    echo=False)# Set to True to see SQL query debugging or console
+
 
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

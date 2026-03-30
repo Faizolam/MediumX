@@ -1,3 +1,5 @@
+
+# ===== docker-compose-prod.yml (Updated for GCP-like environment) =====
 version: '3.8'
 
 services:
@@ -6,47 +8,45 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - 8000:8000
+      - "8000:8000"
     environment:
-      - DATABASE_HOSTNAME=postgres
-      - DATABASE_PORT=5432
-      - DATABASE_PASSWORD=${DATABASE_PASSWORD}  # Use environment variable for sensitive data
-      - DATABASE_NAME=Blogging
-      - DATABASE_USERNAME=${DATABASE_USERNAME}  # Use environment variable for sensitive data
-      - SECRET_KEY=${SECRET_KEY}                  # Use environment variable for sensitive data
+      # Production-like environment variables
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}  
+      - DB_NAME=${DB_NAME}
+      - CLOUD_SQL_CONNECTION_NAME=${CLOUD_SQL_CONNECTION_NAME}
+      - UPLOAD_BUCKET_NAME=${UPLOAD_BUCKET_NAME}
+      - STATIC_BUCKET_NAME=${STATIC_BUCKET_NAME}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - ALGORITHM=HS256
       - ACCESS_TOKEN_EXPIRE_MINUTES=60
-    command: bash -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+      - ENVIRONMENT=production
+      - FRONTEND_URL=${FRONTEND_URL}
+    command: bash -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1"
     depends_on:
       - postgres
     networks:
       - app-network
-
-  frontend:
-    build:
-      context: ./client
-      dockerfile: Dockerfile
-    ports:
-      - 80:80  # Expose port 80 for HTTP traffic in production
-    volumes:
-      - ./client:/usr/share/nginx/html  # Serve static files from the client directory
-    depends_on:
-      - backend
-    networks:
-      - app-network
+    restart: unless-stopped
 
   postgres:
-    image: postgres:latest  # Use the latest stable version of PostgreSQL
+    image: postgres:15
     environment:
-      - POSTGRES_PASSWORD=${DATABASE_PASSWORD}  # Use environment variable for sensitive data
-      - POSTGRES_DB=Blogging
-      - POSTGRES_USER=${DATABASE_USERNAME}       # Use environment variable for sensitive data
+      - POSTGRES_PASSWORD=${DB_PASS}
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
     volumes:
       - postgres-db:/var/lib/postgresql/data
     ports:
-      - "5433:5432"  # Map PostgreSQL port to host for local access (optional)
+      - "5433:5432"
     networks:
       - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres-db:
@@ -54,3 +54,61 @@ volumes:
 networks:
   app-network:
     driver: bridge
+
+
+# version: '3.8'
+
+# services:
+#   backend:
+#     build: 
+#       context: .
+#       dockerfile: Dockerfile
+#     ports:
+#       - 8000:8000
+#     environment:
+#       - DATABASE_HOSTNAME=postgres
+#       - DATABASE_PORT=5432
+#       - DATABASE_PASSWORD=${DATABASE_PASSWORD}  # Use environment variable for sensitive data
+#       - DATABASE_NAME=Blogging
+#       - DATABASE_USERNAME=${DATABASE_USERNAME}  # Use environment variable for sensitive data
+#       - SECRET_KEY=${SECRET_KEY}                  # Use environment variable for sensitive data
+#       - ALGORITHM=HS256
+#       - ACCESS_TOKEN_EXPIRE_MINUTES=60
+#     command: bash -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+#     depends_on:
+#       - postgres
+#     networks:
+#       - app-network
+
+#   frontend:
+#     build:
+#       context: ./client
+#       dockerfile: Dockerfile
+#     ports:
+#       - 80:80  # Expose port 80 for HTTP traffic in production
+#     volumes:
+#       - ./client:/usr/share/nginx/html  # Serve static files from the client directory
+#     depends_on:
+#       - backend
+#     networks:
+#       - app-network
+
+#   postgres:
+#     image: postgres:latest  # Use the latest stable version of PostgreSQL
+#     environment:
+#       - POSTGRES_PASSWORD=${DATABASE_PASSWORD}  # Use environment variable for sensitive data
+#       - POSTGRES_DB=Blogging
+#       - POSTGRES_USER=${DATABASE_USERNAME}       # Use environment variable for sensitive data
+#     volumes:
+#       - postgres-db:/var/lib/postgresql/data
+#     ports:
+#       - "5433:5432"  # Map PostgreSQL port to host for local access (optional)
+#     networks:
+#       - app-network
+
+# volumes:
+#   postgres-db:
+
+# networks:
+#   app-network:
+#     driver: bridge

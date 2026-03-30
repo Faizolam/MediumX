@@ -1,5 +1,66 @@
-__pycache__/
+# __pycache__/
+# *.pyc
+# *.pyo
+# # .env
+# env
+# /tests/
+
+
+# ===== .dockerignore (Root directory) =====
+# Python
+__pycache__
 *.pyc
 *.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+.tox
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.git
+.mypy_cache
+.pytest_cache
+.hypothesis
+
+# Environment files
+env
 .env
-/tests/
+.env.*
+!.env.example
+
+# Development files
+docker-compose*.yml
+.dockerignore
+README.md
+.gitignore
+
+# Tests
+tests/
+pytest.ini
+
+# Local uploads (use Cloud Storage instead)
+Upload/
+app/Upload/
+
+# Client files (deployed separately)
+client/
+
+# Terraform files
+terraform/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
