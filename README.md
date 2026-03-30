@@ -1,8 +1,3 @@
-## MediumX
-Certainly! Here's an enhanced `README.md` for your project, **MediumX**, incorporating the details you've provided:
-
----
-
 # MediumX
 
 **MediumX** is a full-stack blogging platform inspired by Medium.com, designed to offer users a seamless experience in creating, reading, and managing articles. Built with modern technologies, it ensures scalability, security, and performance.
