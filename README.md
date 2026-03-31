@@ -24,6 +24,7 @@
 * **Testing**: Pytest
 * **CI/CD**: GitHub Actions
 * **Cloud**: GCP
+* **Infrastructure as Code**: Terraform
 
 ## 📁 Project Structure
 
