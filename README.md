@@ -34,6 +34,7 @@ MediumX/
 ├── app/                     # Backend application
 ├── client/                  # Frontend application
 ├── nginx/                   # Nginx configuration
+├── terraform/               # Terraform configurations
 ├── tests/                   # Test cases
 ├── .dockerignore            # Docker ignore file
 ├── .gitignore               # Git ignore file
