@@ -75,6 +75,7 @@ async def download_file(filename: str):
         return FileResponse(file_path, media_type="image/jpeg")
     return {"error": "File not found"}
 
+
 @router.get("/ofsingaluser", status_code=status.HTTP_200_OK, response_model=List[postSchemas.PostRead])
 def get_own_posts(db:Session=Depends(get_db),current_user: int = Depends(oauth2.get_current_user)):
     """
@@ -166,6 +167,7 @@ def create_posts(post_data: postSchemas.PostCreate, db: Session = Depends(get_db
     # post_img = upload_image(UploadFile = File(...))
     return newPost
 
+
 @router.post("/upload-image", status_code=status.HTTP_200_OK)
 async def upload_image(file: UploadFile = File(...)):
     """
@@ -196,26 +198,41 @@ async def upload_image(file: UploadFile = File(...)):
         - Original file extension is preserved.
         - Files are stored in Upload/images/ directory relative to app root.
     """
+    ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png"}
+    ALLOWED_MIME_TYPES = {"image/jpeg", "image/png", "application/pdf"}
+    MAX_FILE_SIZE = 5 * 1024 * 1024 #5MB
     try:
-        uniqueFileName=str(datetime.now().timestamp()).replace(".","")
-        print(uniqueFileName)
-        fileNamesplit=str(file.filename).split(".")
-        print(fileNamesplit)
+        # unique_fileName,This prevents directory traversal like "../../etc/passwd" 
+        unique_fileName=str(datetime.now().timestamp()).replace(".","")
+        print(unique_fileName)
+        file_namesplit=str(file.filename).split(".")
+        print(file_namesplit)
 
-        ext = fileNamesplit[len(fileNamesplit)-1]
-        finalFileName=f"{uniqueFileName}.{ext}"
-        finalFilePath=f"Upload/images/{finalFileName}"
+        ext = file_namesplit[len(file_namesplit)-1]
+        # validate Extension
+        if ext not in ALLOWED_EXTENSIONS:
+            raise HTTPException(status_code=400, detail="Invalid file extension.")
+        # validate MIME type (content-type)
+        if file.content_type not in ALLOWED_MIME_TYPES:
+            raise HTTPException(status_code=400, detail="Invalid file type.")
+        # Check file size
+        content = await file.read()
+        if len(content) > MAX_FILE_SIZE:
+            raise HTTPException(status_code=413, detail="File too large (Max 5MB).")
+        
+        final_file_name=f"{unique_fileName}.{ext}"
+        final_file_path=f"Upload/images/{final_file_name}"
 
-        os.makedirs("Upload/images/",exist_ok=True)
+        os.makedirs("Upload/images/",exist_ok=True, media_type="image/jpge")
 
-        with open(finalFilePath, "wb")as buffer:
-            content = await file.read()
+        with open(final_file_path, "wb")as buffer:
+            # content = await file.read()
             res=buffer.write(content)
 
     except Exception as e:
         return {"error": str(e)}
     
-    return {"filename": finalFileName, "status":"Image uploaded Successfully","content":res}
+    return {"filename": final_file_name, "status":"Image uploaded Successfully","content":res}
 
 
 @router.put("/{id}", status_code=status.HTTP_200_OK, response_model=postSchemas.PostRead)
