@@ -8,5 +8,8 @@ InterviewPreparation.md
 notes.md
 *.json
 *.log
-terraform/
+terraform/service  
 .terraform.lock.hcl
+
+
+
